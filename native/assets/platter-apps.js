@@ -1,18 +1,40 @@
+
+// Track the current state of product visibility
+let productVisibilityState = {
+    isInitialized: false,
+    currentlyShown: 4,
+    isMobile: false
+};
+
 // Handle product visibility based on screen width
-const handleProductVisibility = () => {
+const handleProductVisibility = (forceReset = false) => {
     const products = document.querySelectorAll('.product-card');
     const isMobile = window.innerWidth < 768;
+    
+    // Only reset if we're switching between mobile/desktop or if forced
+    const shouldReset = forceReset || (productVisibilityState.isMobile !== isMobile);
+    
+    if (shouldReset) {
+        productVisibilityState.isMobile = isMobile;
+        productVisibilityState.currentlyShown = 4;
+    }
 
     products.forEach((product, index) => {
         if (isMobile) {
-            product.style.display = index > 3 ? 'none' : 'block';
+            // On mobile, only hide products if we're resetting or it's the initial load
+            if (shouldReset || !productVisibilityState.isInitialized) {
+                product.style.display = index >= productVisibilityState.currentlyShown ? 'none' : 'block';
+            }
         } else {
+            // On desktop, show all products
             product.style.cssText = 'display: block; opacity: 0;';
             requestAnimationFrame(() => {
                 product.style.cssText = 'display: block; opacity: 1; transition: opacity 0.3s ease-in-out;';
             });
         }
     });
+    
+    productVisibilityState.isInitialized = true;
 };
 
 // Handle mobile "show more" button click
@@ -20,12 +42,11 @@ const handleMobileButtonClick = () => {
     const mobileButton = document.querySelector('.mobile-button');
     if (!mobileButton) return;
 
-    let currentlyShown = 4;
     const productsPerLoad = 6;
 
     const showMoreProducts = () => {
         const products = document.querySelectorAll('.product-card');
-        const nextBatch = products.length - currentlyShown;
+        const nextBatch = products.length - productVisibilityState.currentlyShown;
         const productsToShow = Math.min(productsPerLoad, nextBatch);
         
         if (productsToShow <= 0) {
@@ -33,14 +54,15 @@ const handleMobileButtonClick = () => {
             return;
         }
 
-        const firstHiddenProduct = products[currentlyShown];
+        const firstHiddenProduct = products[productVisibilityState.currentlyShown];
 
         // Show next batch of products
-        for (let i = currentlyShown; i < currentlyShown + productsToShow; i++) {
+        for (let i = productVisibilityState.currentlyShown; i < productVisibilityState.currentlyShown + productsToShow; i++) {
             products[i].style.display = 'block';
         }
 
-        currentlyShown += productsToShow;
+        // Update the global state
+        productVisibilityState.currentlyShown += productsToShow;
 
         // Scroll to first newly visible product
         if (firstHiddenProduct) {
@@ -50,12 +72,6 @@ const handleMobileButtonClick = () => {
             });
         }
     };
-
-    // Initially hide products after first 4
-    const products = document.querySelectorAll('.product-card');
-    products.forEach((product, index) => {
-        if (index >= 4) product.style.display = 'none';
-    });
 
     mobileButton.addEventListener('click', showMoreProducts);
 };
@@ -163,10 +179,12 @@ const customScrollBar = () => {
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
-    handleProductVisibility();
+    handleProductVisibility(true); // Force initial setup
     handleMobileButtonClick();
     customScrollBar();
 });
 
-// Update product visibility on resize
-window.addEventListener('resize', handleProductVisibility);
+// Update product visibility on resize (but preserve state)
+window.addEventListener('resize', () => {
+    handleProductVisibility(false); // Don't force reset on resize
+});

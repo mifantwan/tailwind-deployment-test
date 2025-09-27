@@ -2174,43 +2174,65 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+
+// Track the current state of product visibility
+var productVisibilityState = {
+  isInitialized: false,
+  currentlyShown: 4,
+  isMobile: false
+};
+
 // Handle product visibility based on screen width
 var handleProductVisibility = function handleProductVisibility() {
+  var forceReset = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
   var products = document.querySelectorAll('.product-card');
   var isMobile = window.innerWidth < 768;
+
+  // Only reset if we're switching between mobile/desktop or if forced
+  var shouldReset = forceReset || productVisibilityState.isMobile !== isMobile;
+  if (shouldReset) {
+    productVisibilityState.isMobile = isMobile;
+    productVisibilityState.currentlyShown = 4;
+  }
   products.forEach(function (product, index) {
     if (isMobile) {
-      product.style.display = index > 3 ? 'none' : 'block';
+      // On mobile, only hide products if we're resetting or it's the initial load
+      if (shouldReset || !productVisibilityState.isInitialized) {
+        product.style.display = index >= productVisibilityState.currentlyShown ? 'none' : 'block';
+      }
     } else {
+      // On desktop, show all products
       product.style.cssText = 'display: block; opacity: 0;';
       requestAnimationFrame(function () {
         product.style.cssText = 'display: block; opacity: 1; transition: opacity 0.3s ease-in-out;';
       });
     }
   });
+  productVisibilityState.isInitialized = true;
 };
 
 // Handle mobile "show more" button click
 var handleMobileButtonClick = function handleMobileButtonClick() {
   var mobileButton = document.querySelector('.mobile-button');
   if (!mobileButton) return;
-  var currentlyShown = 4;
   var productsPerLoad = 6;
   var showMoreProducts = function showMoreProducts() {
     var products = document.querySelectorAll('.product-card');
-    var nextBatch = products.length - currentlyShown;
+    var nextBatch = products.length - productVisibilityState.currentlyShown;
     var productsToShow = Math.min(productsPerLoad, nextBatch);
     if (productsToShow <= 0) {
       mobileButton.style.display = 'none';
       return;
     }
-    var firstHiddenProduct = products[currentlyShown];
+    var firstHiddenProduct = products[productVisibilityState.currentlyShown];
 
     // Show next batch of products
-    for (var i = currentlyShown; i < currentlyShown + productsToShow; i++) {
+    for (var i = productVisibilityState.currentlyShown; i < productVisibilityState.currentlyShown + productsToShow; i++) {
       products[i].style.display = 'block';
     }
-    currentlyShown += productsToShow;
+
+    // Update the global state
+    productVisibilityState.currentlyShown += productsToShow;
 
     // Scroll to first newly visible product
     if (firstHiddenProduct) {
@@ -2220,12 +2242,6 @@ var handleMobileButtonClick = function handleMobileButtonClick() {
       });
     }
   };
-
-  // Initially hide products after first 4
-  var products = document.querySelectorAll('.product-card');
-  products.forEach(function (product, index) {
-    if (index >= 4) product.style.display = 'none';
-  });
   mobileButton.addEventListener('click', showMoreProducts);
 };
 
@@ -2328,13 +2344,15 @@ var customScrollBar = function customScrollBar() {
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', function () {
-  handleProductVisibility();
+  handleProductVisibility(true); // Force initial setup
   handleMobileButtonClick();
   customScrollBar();
 });
 
-// Update product visibility on resize
-window.addEventListener('resize', handleProductVisibility);
+// Update product visibility on resize (but preserve state)
+window.addEventListener('resize', function () {
+  handleProductVisibility(false); // Don't force reset on resize
+});
 MifanStudio = __webpack_exports__;
 /******/ })()
 ;
