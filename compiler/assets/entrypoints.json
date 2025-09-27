@@ -1,0 +1,33 @@
+{
+  "entrypoints": {
+    "platter-preloader": {
+      "css": [
+        "/assets/platter-preloader.css"
+      ],
+      "js": [
+        "/assets/platter-preloader.js"
+      ]
+    },
+    "platter-apps": {
+      "css": [
+        "/assets/platter-apps.css"
+      ],
+      "js": [
+        "/assets/platter-apps.js"
+      ]
+    },
+    "platter-frameworks": {
+      "js": [
+        "/assets/platter-frameworks.js"
+      ]
+    },
+    "platter-library": {
+      "css": [
+        "/assets/platter-library.css"
+      ],
+      "js": [
+        "/assets/platter-library.js"
+      ]
+    }
+  }
+}
