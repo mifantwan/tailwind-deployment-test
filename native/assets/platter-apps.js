@@ -5,20 +5,34 @@ const handleProductVisibility = () => {
 
     products.forEach((product, index) => {
         if (isMobile) {
-            // On mobile, immediately hide products after first 4
-            product.style.cssText = index > 3 ? 'display: none;' : 'display: block;';
+            product.style.display = index > 3 ? 'none' : 'block';
         } else {
-            // On desktop, show all products with fade animation
-            if (product.style.display === 'none') {
-                // If product was hidden, fade it in
-                product.style.cssText = 'display: block; opacity: 0;';
-                requestAnimationFrame(() => {
-                    product.style.cssText = 'display: block; opacity: 1; transition: opacity 0.3s ease-in-out;';
-                });
-            } else {
-                // Product already visible, ensure it stays that way
-                product.style.cssText = 'display: block; opacity: 1;';
-            }
+            product.style.cssText = 'display: block; opacity: 0;';
+            requestAnimationFrame(() => {
+                product.style.cssText = 'display: block; opacity: 1; transition: opacity 0.3s ease-in-out;';
+            });
+        }
+    });
+};
+
+// Handle mobile "show more" button click
+const handleMobileButtonClick = () => {
+    const mobileButton = document.querySelector('.mobile-button');
+    if (!mobileButton) return;
+
+    mobileButton.addEventListener('click', () => {
+        const products = document.querySelectorAll('.product-card');
+        const firstHiddenProduct = products[4];
+        
+        products.forEach((product, index) => {
+            if (index > 3) product.style.display = 'block';
+        });
+
+        if (firstHiddenProduct) {
+            window.scrollTo({
+                top: firstHiddenProduct.getBoundingClientRect().top + window.pageYOffset - 36,
+                behavior: 'smooth'
+            });
         }
     });
 };
@@ -32,20 +46,22 @@ const customScrollBar = () => {
         track: document.querySelector('.scrollbar-track')
     };
 
-    // Early return if elements missing
     if (!Object.values(elements).every(Boolean)) return;
 
     let isDragging = false;
 
-    // Cache commonly used values
-    const { list, scrollbar, thumb, track } = elements;
-    const baseStyles = 'height: 2px; transition: height 0.2s ease';
-    
-    // Set initial styles
-    track.style.cssText = baseStyles;
-    thumb.style.cssText = baseStyles;
+    const shouldShowScrollbar = () => 
+        window.innerWidth >= 768 && elements.list.scrollWidth > elements.list.clientWidth;
 
-    const updateThumbDimensions = (clientWidth, scrollWidth, scrollLeft) => {
+    const updateScrollbar = () => {
+        const { list, scrollbar, thumb } = elements;
+        const scrollLeft = list.scrollLeft;
+        const { scrollWidth, clientWidth } = list;
+        
+        // Update visibility
+        scrollbar.style.display = shouldShowScrollbar() ? 'block' : 'none';
+        
+        // Update thumb dimensions
         const thumbWidth = (clientWidth / scrollWidth) * 100;
         const maxScroll = scrollWidth - clientWidth;
         const thumbPosition = maxScroll > 0 
@@ -56,48 +72,65 @@ const customScrollBar = () => {
         thumb.style.left = `${thumbPosition}%`;
     };
 
-    const updateScrollbar = () => {
-        const { scrollWidth, clientWidth, scrollLeft } = list;
-        
-        // Update visibility based on need for scrolling
-        scrollbar.style.display = 
-            window.innerWidth >= 768 && scrollWidth > clientWidth ? 'block' : 'none';
-        
-        updateThumbDimensions(clientWidth, scrollWidth, scrollLeft);
-    };
-
-    const handleScroll = (percentage) => {
+    const handleTrackClick = (e) => {
+        const { track, list } = elements;
+        const rect = track.getBoundingClientRect();
+        const percentage = (e.clientX - rect.left) / rect.width;
         const maxScroll = list.scrollWidth - list.clientWidth;
+        
         list.scrollLeft = percentage * maxScroll;
     };
 
-    const getScrollPercentage = (e) => {
+    const handleThumbDrag = (e) => {
+        if (!isDragging) return;
+        
+        const { track, list } = elements;
         const rect = track.getBoundingClientRect();
-        return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const percentage = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const maxScroll = list.scrollWidth - list.clientWidth;
+        
+        list.scrollLeft = percentage * maxScroll;
     };
 
-    // Event handlers
-    const handleTrackClick = (e) => handleScroll(getScrollPercentage(e));
-    const handleThumbDrag = (e) => isDragging && handleScroll(getScrollPercentage(e));
-    const handleMouseEnter = () => {
-        track.style.height = '6px';
-        thumb.style.height = '6px';
+    // Set default styles with transitions
+    const setScrollbarStyles = () => {
+        const { track, thumb } = elements;
+        const styles = {
+            transition: 'height 0.2s ease-in-out',
+            height: '2px'
+        };
+        
+        Object.assign(track.style, styles);
+        Object.assign(thumb.style, styles);
     };
-    const handleMouseLeave = () => {
-        track.style.height = '2px';
-        thumb.style.height = '2px';
+
+    // Handle hover effects with smooth transitions
+    const setHoverHeight = (height) => {
+        const { track, thumb } = elements;
+        track.style.height = height;
+        thumb.style.height = height;
     };
+
+    // Initialize styles
+    setScrollbarStyles();
+
+    // Handle hover effects
+    elements.scrollbar.addEventListener('mouseenter', () => {
+        setHoverHeight('6px');
+    });
+
+    elements.scrollbar.addEventListener('mouseleave', () => {
+        setHoverHeight('2px');
+    });
 
     // Event listeners
-    list.addEventListener('scroll', updateScrollbar);
+    elements.list.addEventListener('scroll', updateScrollbar);
     window.addEventListener('resize', updateScrollbar);
-    track.addEventListener('click', handleTrackClick);
-    thumb.addEventListener('mousedown', (e) => {
+    elements.track.addEventListener('click', handleTrackClick);
+    elements.thumb.addEventListener('mousedown', (e) => {
         isDragging = true;
         e.preventDefault();
     });
-    scrollbar.addEventListener('mouseenter', handleMouseEnter);
-    scrollbar.addEventListener('mouseleave', handleMouseLeave);
     document.addEventListener('mousemove', handleThumbDrag);
     document.addEventListener('mouseup', () => isDragging = false);
 
@@ -105,11 +138,12 @@ const customScrollBar = () => {
     updateScrollbar();
 };
 
+// Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     handleProductVisibility();
+    handleMobileButtonClick();
     customScrollBar();
 });
 
-window.addEventListener('resize', () => {
-    handleProductVisibility();
-});
+// Update product visibility on resize
+window.addEventListener('resize', handleProductVisibility);
