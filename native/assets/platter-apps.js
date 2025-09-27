@@ -20,21 +20,44 @@ const handleMobileButtonClick = () => {
     const mobileButton = document.querySelector('.mobile-button');
     if (!mobileButton) return;
 
-    mobileButton.addEventListener('click', () => {
-        const products = document.querySelectorAll('.product-card');
-        const firstHiddenProduct = products[4];
-        
-        products.forEach((product, index) => {
-            if (index > 3) product.style.display = 'block';
-        });
+    let currentlyShown = 4;
+    const productsPerLoad = 6;
 
+    const showMoreProducts = () => {
+        const products = document.querySelectorAll('.product-card');
+        const nextBatch = products.length - currentlyShown;
+        const productsToShow = Math.min(productsPerLoad, nextBatch);
+        
+        if (productsToShow <= 0) {
+            mobileButton.style.display = 'none';
+            return;
+        }
+
+        const firstHiddenProduct = products[currentlyShown];
+
+        // Show next batch of products
+        for (let i = currentlyShown; i < currentlyShown + productsToShow; i++) {
+            products[i].style.display = 'block';
+        }
+
+        currentlyShown += productsToShow;
+
+        // Scroll to first newly visible product
         if (firstHiddenProduct) {
             window.scrollTo({
                 top: firstHiddenProduct.getBoundingClientRect().top + window.pageYOffset - 36,
                 behavior: 'smooth'
             });
         }
+    };
+
+    // Initially hide products after first 4
+    const products = document.querySelectorAll('.product-card');
+    products.forEach((product, index) => {
+        if (index >= 4) product.style.display = 'none';
     });
+
+    mobileButton.addEventListener('click', showMoreProducts);
 };
 
 // Custom scrollbar implementation

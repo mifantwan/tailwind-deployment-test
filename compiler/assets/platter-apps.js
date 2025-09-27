@@ -2194,19 +2194,39 @@ var handleProductVisibility = function handleProductVisibility() {
 var handleMobileButtonClick = function handleMobileButtonClick() {
   var mobileButton = document.querySelector('.mobile-button');
   if (!mobileButton) return;
-  mobileButton.addEventListener('click', function () {
+  var currentlyShown = 4;
+  var productsPerLoad = 6;
+  var showMoreProducts = function showMoreProducts() {
     var products = document.querySelectorAll('.product-card');
-    var firstHiddenProduct = products[4];
-    products.forEach(function (product, index) {
-      if (index > 3) product.style.display = 'block';
-    });
+    var nextBatch = products.length - currentlyShown;
+    var productsToShow = Math.min(productsPerLoad, nextBatch);
+    if (productsToShow <= 0) {
+      mobileButton.style.display = 'none';
+      return;
+    }
+    var firstHiddenProduct = products[currentlyShown];
+
+    // Show next batch of products
+    for (var i = currentlyShown; i < currentlyShown + productsToShow; i++) {
+      products[i].style.display = 'block';
+    }
+    currentlyShown += productsToShow;
+
+    // Scroll to first newly visible product
     if (firstHiddenProduct) {
       window.scrollTo({
         top: firstHiddenProduct.getBoundingClientRect().top + window.pageYOffset - 36,
         behavior: 'smooth'
       });
     }
+  };
+
+  // Initially hide products after first 4
+  var products = document.querySelectorAll('.product-card');
+  products.forEach(function (product, index) {
+    if (index >= 4) product.style.display = 'none';
   });
+  mobileButton.addEventListener('click', showMoreProducts);
 };
 
 // Custom scrollbar implementation
