@@ -1,4 +1,3 @@
-Test URL
-Compile Version :  https://tailwind-compiler.mifan.io/ 
+Test URL Compile Version :  https://tailwind-compiler.mifan.io/ 
 
-Native CDN Version : https://tailwind-native.mifan.io/ 
+Test URL Native CDN Version : https://tailwind-native.mifan.io/ 
