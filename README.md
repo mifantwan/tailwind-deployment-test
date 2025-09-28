@@ -1,6 +1,10 @@
-Test URL Compile Version :  https://tailwind-compiler.mifan.io/ 
+## Test Source Information ##
 
-Test URL Native CDN Version : https://tailwind-native.mifan.io/ 
+This repository contains test URLs for different versions:
 
-Section Liquid Components 
-Folder Section 
+- Compile Version: https://tailwind-compiler.mifan.io/
+- Native CDN Version: https://tailwind-native.mifan.io/
+
+The test environment includes:
+- Section Liquid Components
+- Section Folder Structure
