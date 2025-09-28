@@ -1,17 +1,65 @@
 
-// Track the current state of product visibility
-let productVisibilityState = {
+// Optimized product visibility state management
+const productVisibilityState = {
     isInitialized: false,
     currentlyShown: 4,
-    isMobile: false
+    isMobile: false,
+    products: null,
+    mobileButton: null
 };
 
-// Handle product visibility based on screen width
-const handleProductVisibility = (forceReset = false) => {
-    const products = document.querySelectorAll('.product-card');
+// Cache DOM elements for better performance
+const cacheElements = () => {
+    productVisibilityState.products = document.querySelectorAll('.product-card');
+    productVisibilityState.mobileButton = document.querySelector('.mobile-button');
+};
+
+// Debounced resize handler for better performance
+const debounce = (func, wait) => {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+};
+
+// Handle mobile button visibility
+const updateMobileButtonVisibility = () => {
+    const { mobileButton, products } = productVisibilityState;
+    if (!mobileButton || !products?.length) return;
+
     const isMobile = window.innerWidth < 768;
     
-    // Only reset if we're switching between mobile/desktop or if forced
+    if (isMobile) {
+        // Show button if there are hidden products
+        const hiddenProducts = Array.from(products).filter(product => 
+            product.classList.contains('hidden')
+        );
+        
+        if (hiddenProducts.length > 0) {
+            mobileButton.classList.remove('hidden');
+            mobileButton.classList.add('block');
+        } else {
+            mobileButton.classList.add('hidden');
+            mobileButton.classList.remove('block');
+        }
+    } else {
+        // Hide button on desktop
+        mobileButton.classList.add('hidden');
+        mobileButton.classList.remove('block');
+    }
+};
+
+// Handle product visibility with optimized DOM manipulation
+const handleProductVisibility = (forceReset = false) => {
+    const { products } = productVisibilityState;
+    if (!products?.length) return;
+    
+    const isMobile = window.innerWidth < 768;
     const shouldReset = forceReset || (productVisibilityState.isMobile !== isMobile);
     
     if (shouldReset) {
@@ -19,55 +67,69 @@ const handleProductVisibility = (forceReset = false) => {
         productVisibilityState.currentlyShown = 4;
     }
 
+    // Use document fragment for better performance
+    const fragment = document.createDocumentFragment();
+    const hiddenProducts = [];
+    
     products.forEach((product, index) => {
         if (isMobile) {
-            // On mobile, only hide products if we're resetting or it's the initial load
             if (shouldReset || !productVisibilityState.isInitialized) {
-                product.style.display = index >= productVisibilityState.currentlyShown ? 'none' : 'block';
+                if (index >= productVisibilityState.currentlyShown) {
+                    product.classList.add('hidden');
+                    hiddenProducts.push(product);
+                } else {
+                    product.classList.remove('hidden');
+                }
             }
         } else {
-            // On desktop, show all products
-            product.style.cssText = 'display: block; opacity: 0;';
-            requestAnimationFrame(() => {
-                product.style.cssText = 'display: block; opacity: 1; transition: opacity 0.3s ease-in-out;';
-            });
+            // Use Tailwind classes instead of inline styles
+            product.classList.remove('hidden', 'opacity-0');
+            product.classList.add('block', 'opacity-100', 'transition-opacity', 'duration-300', 'ease-in-out');
         }
     });
     
     productVisibilityState.isInitialized = true;
+    
+    // Update mobile button visibility after product visibility changes
+    updateMobileButtonVisibility();
 };
 
-// Handle mobile "show more" button click
+// Optimized mobile "show more" button handler
 const handleMobileButtonClick = () => {
-    const mobileButton = document.querySelector('.mobile-button');
-    if (!mobileButton) return;
+    const { mobileButton, products } = productVisibilityState;
+    if (!mobileButton || !products?.length) return;
 
     const productsPerLoad = 6;
 
     const showMoreProducts = () => {
-        const products = document.querySelectorAll('.product-card');
         const nextBatch = products.length - productVisibilityState.currentlyShown;
         const productsToShow = Math.min(productsPerLoad, nextBatch);
         
         if (productsToShow <= 0) {
-            mobileButton.style.display = 'none';
+            mobileButton.classList.add('hidden');
+            mobileButton.classList.remove('block');
             return;
         }
 
         const firstHiddenProduct = products[productVisibilityState.currentlyShown];
 
-        // Show next batch of products
+        // Show next batch of products using Tailwind classes
         for (let i = productVisibilityState.currentlyShown; i < productVisibilityState.currentlyShown + productsToShow; i++) {
-            products[i].style.display = 'block';
+            products[i].classList.remove('hidden');
+            products[i].classList.add('block');
         }
 
         // Update the global state
         productVisibilityState.currentlyShown += productsToShow;
 
-        // Scroll to first newly visible product
+        // Update button visibility after showing more products
+        updateMobileButtonVisibility();
+
+        // Smooth scroll to first newly visible product
         if (firstHiddenProduct) {
+            const scrollOffset = firstHiddenProduct.getBoundingClientRect().top + window.pageYOffset - 36;
             window.scrollTo({
-                top: firstHiddenProduct.getBoundingClientRect().top + window.pageYOffset - 36,
+                top: scrollOffset,
                 behavior: 'smooth'
             });
         }
@@ -76,7 +138,7 @@ const handleMobileButtonClick = () => {
     mobileButton.addEventListener('click', showMoreProducts);
 };
 
-// Custom scrollbar implementation
+// Optimized custom scrollbar with better Tailwind integration
 const customScrollBar = () => {
     const elements = {
         list: document.querySelector('.collection-lists'),
@@ -88,27 +150,44 @@ const customScrollBar = () => {
     if (!Object.values(elements).every(Boolean)) return;
 
     let isDragging = false;
+    let animationFrameId = null;
 
     const shouldShowScrollbar = () => 
         window.innerWidth >= 768 && elements.list.scrollWidth > elements.list.clientWidth;
 
+    // Throttled scrollbar update for better performance
     const updateScrollbar = () => {
-        const { list, scrollbar, thumb } = elements;
-        const scrollLeft = list.scrollLeft;
-        const { scrollWidth, clientWidth } = list;
+        if (animationFrameId) return;
         
-        // Update visibility
-        scrollbar.style.display = shouldShowScrollbar() ? 'block' : 'none';
-        
-        // Update thumb dimensions
-        const thumbWidth = (clientWidth / scrollWidth) * 100;
-        const maxScroll = scrollWidth - clientWidth;
-        const thumbPosition = maxScroll > 0 
-            ? (scrollLeft / maxScroll) * (100 - thumbWidth)
-            : 0;
+        animationFrameId = requestAnimationFrame(() => {
+            const { list, scrollbar, thumb } = elements;
+            const scrollLeft = list.scrollLeft;
+            const { scrollWidth, clientWidth } = list;
             
-        thumb.style.width = `${thumbWidth}%`;
-        thumb.style.left = `${thumbPosition}%`;
+            // Update visibility using Tailwind classes
+            if (shouldShowScrollbar()) {
+                scrollbar.classList.remove('hidden');
+                scrollbar.classList.add('block');
+            } else {
+                scrollbar.classList.add('hidden');
+                scrollbar.classList.remove('block');
+            }
+            
+            // Update thumb dimensions
+            const thumbWidth = (clientWidth / scrollWidth) * 100;
+            const maxScroll = scrollWidth - clientWidth;
+            const thumbPosition = maxScroll > 0 
+                ? (scrollLeft / maxScroll) * (100 - thumbWidth)
+                : 0;
+                
+            // Use CSS custom properties for better performance
+            thumb.style.setProperty('--thumb-width', `${thumbWidth}%`);
+            thumb.style.setProperty('--thumb-left', `${thumbPosition}%`);
+            thumb.style.width = `var(--thumb-width)`;
+            thumb.style.left = `var(--thumb-left)`;
+            
+            animationFrameId = null;
+        });
     };
 
     const handleTrackClick = (e) => {
@@ -117,7 +196,10 @@ const customScrollBar = () => {
         const percentage = (e.clientX - rect.left) / rect.width;
         const maxScroll = list.scrollWidth - list.clientWidth;
         
-        list.scrollLeft = percentage * maxScroll;
+        list.scrollTo({
+            left: percentage * maxScroll,
+            behavior: 'smooth'
+        });
     };
 
     const handleThumbDrag = (e) => {
@@ -131,60 +213,115 @@ const customScrollBar = () => {
         list.scrollLeft = percentage * maxScroll;
     };
 
-    // Set default styles with transitions
-    const setScrollbarStyles = () => {
+    // Initialize with Tailwind classes
+    const initializeScrollbar = () => {
         const { track, thumb } = elements;
-        const styles = {
-            transition: 'height 0.2s ease-in-out',
-            height: '2px'
-        };
         
-        Object.assign(track.style, styles);
-        Object.assign(thumb.style, styles);
+        // Add Tailwind classes for transitions
+        track.classList.add('transition-all', 'duration-200', 'ease-in-out');
+        thumb.classList.add('transition-all', 'duration-200', 'ease-in-out');
+        
+        // Set initial height using Tailwind
+        track.classList.add('h-0.5');
+        thumb.classList.add('h-full');
     };
 
-    // Handle hover effects with smooth transitions
-    const setHoverHeight = (height) => {
+    // Handle hover effects with Tailwind classes
+    const handleHoverEnter = () => {
         const { track, thumb } = elements;
-        track.style.height = height;
-        thumb.style.height = height;
+        track.classList.remove('h-0.5');
+        track.classList.add('h-1.5');
+        thumb.classList.remove('h-full');
+        thumb.classList.add('h-full');
     };
 
-    // Initialize styles
-    setScrollbarStyles();
+    const handleHoverLeave = () => {
+        const { track, thumb } = elements;
+        track.classList.remove('h-1.5');
+        track.classList.add('h-0.5');
+        thumb.classList.remove('h-full');
+        thumb.classList.add('h-full');
+    };
 
-    // Handle hover effects
-    elements.scrollbar.addEventListener('mouseenter', () => {
-        setHoverHeight('6px');
-    });
+    // Initialize
+    initializeScrollbar();
 
-    elements.scrollbar.addEventListener('mouseleave', () => {
-        setHoverHeight('2px');
-    });
+    // Event listeners with proper cleanup
+    const eventListeners = {
+        scroll: updateScrollbar,
+        resize: debounce(updateScrollbar, 100),
+        trackClick: handleTrackClick,
+        thumbMouseDown: (e) => {
+            isDragging = true;
+            e.preventDefault();
+        },
+        mouseMove: handleThumbDrag,
+        mouseUp: () => { isDragging = false; },
+        hoverEnter: handleHoverEnter,
+        hoverLeave: handleHoverLeave
+    };
 
-    // Event listeners
-    elements.list.addEventListener('scroll', updateScrollbar);
-    window.addEventListener('resize', updateScrollbar);
-    elements.track.addEventListener('click', handleTrackClick);
-    elements.thumb.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        e.preventDefault();
-    });
-    document.addEventListener('mousemove', handleThumbDrag);
-    document.addEventListener('mouseup', () => isDragging = false);
+    // Add event listeners
+    elements.list.addEventListener('scroll', eventListeners.scroll);
+    window.addEventListener('resize', eventListeners.resize);
+    elements.track.addEventListener('click', eventListeners.trackClick);
+    elements.thumb.addEventListener('mousedown', eventListeners.thumbMouseDown);
+    document.addEventListener('mousemove', eventListeners.mouseMove);
+    document.addEventListener('mouseup', eventListeners.mouseUp);
+    elements.scrollbar.addEventListener('mouseenter', eventListeners.hoverEnter);
+    elements.scrollbar.addEventListener('mouseleave', eventListeners.hoverLeave);
 
     // Initial update
     updateScrollbar();
+
+    // Return cleanup function
+    return () => {
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+        }
+        elements.list.removeEventListener('scroll', eventListeners.scroll);
+        window.removeEventListener('resize', eventListeners.resize);
+        elements.track.removeEventListener('click', eventListeners.trackClick);
+        elements.thumb.removeEventListener('mousedown', eventListeners.thumbMouseDown);
+        document.removeEventListener('mousemove', eventListeners.mouseMove);
+        document.removeEventListener('mouseup', eventListeners.mouseUp);
+        elements.scrollbar.removeEventListener('mouseenter', eventListeners.hoverEnter);
+        elements.scrollbar.removeEventListener('mouseleave', eventListeners.hoverLeave);
+    };
+};
+
+// Optimized initialization with proper cleanup
+let cleanupScrollbar = null;
+
+const initializeApp = () => {
+    // Cache DOM elements first
+    cacheElements();
+    
+    // Initialize components
+    handleProductVisibility(true);
+    handleMobileButtonClick();
+    cleanupScrollbar = customScrollBar();
+};
+
+// Cleanup function for proper memory management
+const cleanup = () => {
+    if (cleanupScrollbar) {
+        cleanupScrollbar();
+        cleanupScrollbar = null;
+    }
 };
 
 // Initialize on DOM load
-document.addEventListener('DOMContentLoaded', () => {
-    handleProductVisibility(true); // Force initial setup
-    handleMobileButtonClick();
-    customScrollBar();
-});
+document.addEventListener('DOMContentLoaded', initializeApp);
 
-// Update product visibility on resize (but preserve state)
-window.addEventListener('resize', () => {
-    handleProductVisibility(false); // Don't force reset on resize
-});
+// Debounced resize handler for better performance
+const debouncedResize = debounce(() => {
+    handleProductVisibility(false);
+    // Ensure button visibility is updated on resize
+    updateMobileButtonVisibility();
+}, 150);
+
+window.addEventListener('resize', debouncedResize);
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', cleanup);
